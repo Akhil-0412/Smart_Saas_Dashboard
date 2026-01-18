@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Profile {
+  id        String   @id // Clerk User ID
+  email     String   @unique
+  firstName String?
+  lastName  String?
+  phone     String?
+  imageUrl  String?
+  role      String   @default("user") // "admin" or "user"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  auditLogs AuditLog[]
+  subscription Subscription?
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String   // e.g., "LOGIN", "UPDATE_PROFILE"
+  details   String?
+  userId    String
+  user      Profile  @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Subscription {
+  id        String   @id @default(uuid())
+  stripeCustomerId String @unique
+  stripeSubscriptionId String? @unique
+  status    String   @default("inactive")
+  planId    String?
+  currentPeriodEnd DateTime?
+  // tier      String   @default("free") // Optional: for multi-tier
+  userId    String   @unique
+  user      Profile  @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
