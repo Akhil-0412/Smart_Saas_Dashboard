@@ -82,7 +82,7 @@ export async function POST(req: Request) {
     if (event.type === "invoice.payment_succeeded") {
         const subscription = await stripe.subscriptions.retrieve(
             session.subscription as string
-        );
+        ) as any;
 
         const subscriptionInDb = await prisma.subscription.findUnique({
             where: {
@@ -107,7 +107,7 @@ export async function POST(req: Request) {
     if (event.type === "customer.subscription.deleted" || event.type === "customer.subscription.updated") {
         const subscription = await stripe.subscriptions.retrieve(
             (event.data.object as Stripe.Subscription).id
-        );
+        ) as any;
 
         const subscriptionInDb = await prisma.subscription.findUnique({
             where: {
