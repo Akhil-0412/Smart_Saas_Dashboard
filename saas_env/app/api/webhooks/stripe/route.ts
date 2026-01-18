@@ -37,7 +37,7 @@ export async function POST(req: Request) {
 
         // Handle Subscription Mode
         if (session.mode === 'subscription' && subId) {
-            const subscription = await stripe.subscriptions.retrieve(subId);
+            const subscription = await stripe.subscriptions.retrieve(subId) as any;
             PeriodEnd = new Date(subscription.current_period_end * 1000);
             status = subscription.status;
             planId = subscription.items.data[0].plan.id;
