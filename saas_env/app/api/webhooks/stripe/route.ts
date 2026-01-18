@@ -28,9 +28,30 @@ export async function POST(req: Request) {
     const session = event.data.object as Stripe.Checkout.Session;
 
     if (event.type === "checkout.session.completed") {
-        const subscription = await stripe.subscriptions.retrieve(
-            session.subscription as string
-        );
+
+        let subId = session.subscription as string;
+        let customerId = session.customer as string;
+        let PeriodEnd = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30); // Default 30 days
+        let status = "active";
+        let planId = "one_time";
+
+        // Handle Subscription Mode
+        if (session.mode === 'subscription' && subId) {
+            const subscription = await stripe.subscriptions.retrieve(subId);
+            PeriodEnd = new Date(subscription.current_period_end * 1000);
+            status = subscription.status;
+            planId = subscription.items.data[0].plan.id;
+            customerId = subscription.customer as string;
+        }
+        // Handle One-Time Payment Mode
+        else if (session.mode === 'payment') {
+            // Lifetime access (100 years)
+            PeriodEnd = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 100);
+            status = 'active';
+            planId = 'lifetime_access';
+            // Use session ID as the "subscription" ID reference for one-time
+            subId = session.id;
+        }
 
         if (!session?.metadata?.userId) {
             return new NextResponse("User id is required", { status: 400 });
@@ -40,24 +61,22 @@ export async function POST(req: Request) {
             where: {
                 userId: session.metadata.userId,
             },
-            update: { // If subscription exists, update it (e.g. they re-subscribed)
-                stripeSubscriptionId: subscription.id,
-                stripeCustomerId: subscription.customer as string,
-                planId: subscription.items.data[0].plan.id,
-                currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-                status: subscription.status,
+            update: {
+                stripeSubscriptionId: subId,
+                stripeCustomerId: customerId,
+                planId: planId,
+                currentPeriodEnd: PeriodEnd,
+                status: status,
             },
             create: {
                 userId: session.metadata.userId,
-                stripeSubscriptionId: subscription.id,
-                stripeCustomerId: subscription.customer as string,
-                planId: subscription.items.data[0].plan.id,
-                currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-                status: subscription.status,
+                stripeSubscriptionId: subId,
+                stripeCustomerId: customerId,
+                planId: planId,
+                currentPeriodEnd: PeriodEnd,
+                status: status,
             },
         });
-
-        // Optional: Send welcome email here
     }
 
     if (event.type === "invoice.payment_succeeded") {
